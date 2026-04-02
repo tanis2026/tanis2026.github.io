@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>联系艾利姆 Allium</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+    background: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  .container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 40px;
+    width: 100%;
+    max-width: 600px;
+  }
+  .header { text-align: center; margin-bottom: 32px; }
+  .header h1 {
+    font-size: 24px;
+    color: #2d5a27;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+  }
+  .header p { color: #888; font-size: 14px; }
+  .form-group { margin-bottom: 20px; }
+  .form-group label {
+    display: block;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .form-group input:focus,
+  .form-group textarea:focus {
+    border-color: #2d5a27;
+  }
+  .form-group textarea { resize: vertical; min-height: 120px; }
+  .btn-submit {
+    width: 100%;
+    padding: 12px;
+    background: #2d5a27;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+  .btn-submit:hover { background: #3d7a35; }
+  .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+  .status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 14px;
+    display: none;
+  }
+  .status.success { background: #e8f5e9; color: #2d5a27; display: block; }
+  .status.error { background: #ffebee; color: #c62828; display: block; }
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 24px;
+    color: #2d5a27;
+    text-decoration: none;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>联系艾利姆</h1>
+    <p>ALLIUM SEEDS LIMITED · 艾利姆种苗（香港）有限公司</p>
+  </div>
+
+  <form id="contactForm" onsubmit="return false;">
+    <div class="form-group">
+      <label for="name">您的姓名 *</label>
+      <input type="text" id="name" name="name" placeholder="请输入姓名" required>
+    </div>
+    <div class="form-group">
+      <label for="contact">联系方式 *</label>
+      <input type="text" id="contact" name="contact" placeholder="手机号 / 微信 / 邮箱" required>
+    </div>
+    <div class="form-group">
+      <label for="subject">咨询主题</label>
+      <input type="text" id="subject" name="subject" placeholder="如：种子采购 / 合作咨询">
+    </div>
+    <div class="form-group">
+      <label for="message">留言内容 *</label>
+      <textarea id="message" name="message" placeholder="请详细描述您的需求…" required></textarea>
+    </div>
+    <button type="submit" class="btn-submit" id="submitBtn">提交留言</button>
+    <div id="status" class="status"></div>
+  </form>
+
+  <a href="https://www.allium.cn" class="back-link">← 返回首页</a>
+</div>
+
+<script>
+const APP_ID = 'cli_a94a2fb1f0a25cd4';
+const APP_SECRET = '1juxl9xa4K1RIq7lw652EhSVCSUyzOlc';
+const USER_OPEN_ID = 'ou_2ba2031acb06bd7bcf2724ccd517ad21';
+
+let token = '';
+let tokenExpire = 0;
+
+async function getTenantToken() {
+  if (Date.now() < tokenExpire) return token;
+  const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
+  });
+  const data = await resp.json();
+  if (data.code !== 0) throw new Error('获取token失败: ' + data.msg);
+  token = data.tenant_access_token;
+  tokenExpire = Date.now() + (data.expire_in - 120) * 1000;
+  return token;
+}
+
+async function sendMessage(text) {
+  const t = await getTenantToken();
+  const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + t
+    },
+    body: JSON.stringify({
+      receive_id: USER_OPEN_ID,
+      msg_type: 'text',
+      content: JSON.stringify({ text })
+    })
+  });
+  const data = await resp.json();
+  if (data.code !== 0) throw new Error('发送失败: ' + data.msg + ' (code=' + data.code + ')');
+}
+
+function formatTime() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' +
+         String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+}
+
+document.getElementById('contactForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+
+  const name = document.getElementById('name').value.trim();
+  const contact = document.getElementById('contact').value.trim();
+  const subject = document.getElementById('subject').value.trim();
+  const message = document.getElementById('message').value.trim();
+
+  if (!name || !contact || !message) {
+    status.className = 'status error';
+    status.textContent = '请填写必填项';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  status.className = 'status';
+  status.style.display = 'none';
+
+  try {
+    const text = [
+      '【网站留言通知】',
+      '━━━━━━━━━━━━━━',
+      '姓名：' + name,
+      '联系方式：' + contact,
+      subject ? '主题：' + subject : '',
+      '━━━━━━━━━━━━━━',
+      message,
+      '━━━━━━━━━━━━━━',
+      '时间：' + formatTime(),
+      '请及时处理此留言。'
+    ].filter(Boolean).join('\n');
+
+    await sendMessage(text);
+    status.className = 'status success';
+    status.textContent = '✅ 提交成功！我们将尽快与您联系。';
+    document.getElementById('contactForm').reset();
+  } catch(err) {
+    console.error(err);
+    status.className = 'status error';
+    status.textContent = '❌ 提交失败：' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '提交留言';
+  }
+});
+</script>
+</body>
+</html>
