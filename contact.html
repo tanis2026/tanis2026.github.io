@@ -73,16 +73,16 @@
   }
   .btn-submit:hover { background: #3d7a35; }
   .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
-  .status {
+  .success-msg {
     margin-top: 16px;
-    padding: 12px;
+    padding: 16px;
     border-radius: 8px;
     text-align: center;
-    font-size: 14px;
+    font-size: 15px;
+    background: #e8f5e9;
+    color: #2d5a27;
     display: none;
   }
-  .status.success { background: #e8f5e9; color: #2d5a27; display: block; }
-  .status.error { background: #ffebee; color: #c62828; display: block; }
   .back-link {
     display: block;
     text-align: center;
@@ -101,25 +101,37 @@
     <p>ALLIUM SEEDS LIMITED · 艾利姆种苗（香港）有限公司</p>
   </div>
 
-  <form id="contactForm">
+  <!-- Formspree handles redirect to #thanks on success -->
+  <form id="contactForm"
+        action="https://formspree.io/f/mdappypv"
+        method="POST">
+
     <div class="form-group">
       <label for="name">您的姓名 *</label>
       <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
     </div>
+
     <div class="form-group">
       <label for="contact">联系方式 *</label>
       <input type="text" id="contact" name="contact" placeholder="手机 / 微信 / 邮箱" required>
     </div>
+
     <div class="form-group">
       <label for="subject">咨询主题</label>
       <input type="text" id="subject" name="subject" placeholder="如：种子采购 / 合作咨询">
     </div>
+
     <div class="form-group">
       <label for="message">留言内容 *</label>
       <textarea id="message" name="message" placeholder="请详细描述您的需求" required></textarea>
     </div>
+
     <button type="submit" class="btn-submit" id="submitBtn">提 交</button>
-    <div id="status" class="status"></div>
+
+    <!-- Success message shown after redirect -->
+    <div id="successMsg" class="success-msg">
+      ✓ 提交成功！我们将尽快与您联系。
+    </div>
   </form>
 
   <a href="https://www.allium.cn" class="back-link">← 返回首页</a>
@@ -127,77 +139,12 @@
 
 <script>
 (function() {
-  var form = document.getElementById('contactForm');
-  var btn = document.getElementById('submitBtn');
-  var status = document.getElementById('status');
-
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    var name = document.getElementById('name').value.trim();
-    var contact = document.getElementById('contact').value.trim();
-    var subject = document.getElementById('subject').value.trim();
-    var message = document.getElementById('message').value.trim();
-
-    if (!name || !contact || !message) {
-      status.className = 'status error';
-      status.textContent = '请填写必填项';
-      status.style.display = 'block';
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = '提交中...';
-    status.className = 'status';
-    status.style.display = 'none';
-
-    // Build formatted message
-    var formattedMessage = [
-      '🌐 网站留言通知',
-      '════════════════════════════════════',
-      '',
-      '姓名：' + name,
-      '联系方式：' + contact,
-      subject ? '主题：' + subject : '',
-      '',
-      '════════════════════════════════════',
-      '留言内容：',
-      message,
-      '',
-      '════════════════════════════════════',
-      '请及时回复。'
-    ].filter(function(s) { return s !== false; }).join('\n');
-
-    // Submit via fetch to Formspree
-    var formData = new FormData();
-    formData.append('name', name);
-    formData.append('contact', contact);
-    formData.append('subject', subject || '(无主题)');
-    formData.append('message', formattedMessage);
-
-    fetch('https://formspree.io/f/mdappypv', {
-      method: 'POST',
-      body: formData,
-      accept: 'application/json'
-    }).then(function(response) {
-      if (response.ok) {
-        status.className = 'status success';
-        status.textContent = '✓ 提交成功！我们将尽快与您联系。';
-        form.reset();
-      } else {
-        status.className = 'status error';
-        status.textContent = '✗ 提交失败，请稍后重试（错误码：' + response.status + '）';
-        status.style.display = 'block';
-      }
-    }).catch(function(err) {
-      status.className = 'status error';
-      status.textContent = '✗ 网络错误，请检查网络后重试。';
-      status.style.display = 'block';
-    }).finally(function() {
-      btn.disabled = false;
-      btn.textContent = '提 交';
-    });
-  });
+  // Show success message if redirected back from Formspree
+  if (window.location.hash === '#thanks') {
+    document.getElementById('successMsg').style.display = 'block';
+    document.getElementById('contactForm').reset();
+    window.location.hash = '';
+  }
 })();
 </script>
 </body>
