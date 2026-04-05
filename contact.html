@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>联系艾利姆 Allium</title>
+<title>联系我们 - Contact Us · 艾利姆 Allium</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -50,6 +50,7 @@
     font-family: inherit;
     transition: border-color 0.2s;
     outline: none;
+    box-sizing: border-box;
   }
   .form-group input:focus,
   .form-group textarea:focus {
@@ -90,23 +91,24 @@
     text-decoration: none;
     font-size: 13px;
   }
+  .back-link:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>联系艾利姆</h1>
+    <h1>联系我们</h1>
     <p>ALLIUM SEEDS LIMITED · 艾利姆种苗（香港）有限公司</p>
   </div>
 
-  <form id="contactForm" onsubmit="return false;">
+  <form id="contactForm" action="https://formspree.io/f/mdappypv" method="POST">
     <div class="form-group">
       <label for="name">您的姓名 *</label>
-      <input type="text" id="name" name="name" placeholder="请输入姓名" required>
+      <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
     </div>
     <div class="form-group">
       <label for="contact">联系方式 *</label>
-      <input type="text" id="contact" name="contact" placeholder="手机号 / 微信 / 邮箱" required>
+      <input type="text" id="contact" name="contact" placeholder="手机 / 微信 / 邮箱" required>
     </div>
     <div class="form-group">
       <label for="subject">咨询主题</label>
@@ -114,9 +116,10 @@
     </div>
     <div class="form-group">
       <label for="message">留言内容 *</label>
-      <textarea id="message" name="message" placeholder="请详细描述您的需求…" required></textarea>
+      <textarea id="message" name="message" placeholder="请详细描述您的需求" required></textarea>
     </div>
-    <button type="submit" class="btn-submit" id="submitBtn">提交留言</button>
+    <input type="hidden" name="_replyto" value="">
+    <button type="submit" class="btn-submit" id="submitBtn">提 交</button>
     <div id="status" class="status"></div>
   </form>
 
@@ -124,55 +127,19 @@
 </div>
 
 <script>
-const APP_ID = 'cli_a94a2fb1f0a25cd4';
-const APP_SECRET = '1juxl9xa4K1RIq7lw652EhSVCSUyzOlc';
-const USER_OPEN_ID = 'ou_2ba2031acb06bd7bcf2724ccd517ad21';
-
-let token = '';
-let tokenExpire = 0;
-
-async function getTenantToken() {
-  if (Date.now() < tokenExpire) return token;
-  const resp = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_id: APP_ID, app_secret: APP_SECRET })
-  });
-  const data = await resp.json();
-  if (data.code !== 0) throw new Error('获取token失败: ' + data.msg);
-  token = data.tenant_access_token;
-  tokenExpire = Date.now() + (data.expire_in - 120) * 1000;
-  return token;
-}
-
-async function sendMessage(text) {
-  const t = await getTenantToken();
-  const resp = await fetch('https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + t
-    },
-    body: JSON.stringify({
-      receive_id: USER_OPEN_ID,
-      msg_type: 'text',
-      content: JSON.stringify({ text })
-    })
-  });
-  const data = await resp.json();
-  if (data.code !== 0) throw new Error('发送失败: ' + data.msg + ' (code=' + data.code + ')');
-}
-
-function formatTime() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' +
-         String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
-}
-
 document.getElementById('contactForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
+  // Let Formspree handle the redirect for AJAX submissions
+  // But since we want custom UI feedback, intercept
+});
+
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+  const form = e.target;
   const btn = document.getElementById('submitBtn');
   const status = document.getElementById('status');
+
+  // If Formspree returns (via redirect or fetch), show success
+  // Use fetch to submit without page reload
+  e.preventDefault();
 
   const name = document.getElementById('name').value.trim();
   const contact = document.getElementById('contact').value.trim();
@@ -186,36 +153,62 @@ document.getElementById('contactForm').addEventListener('submit', async function
   }
 
   btn.disabled = true;
-  btn.textContent = '提交中…';
+  btn.textContent = '提交中...';
   status.className = 'status';
   status.style.display = 'none';
 
-  try {
-    const text = [
-      '【网站留言通知】',
-      '━━━━━━━━━━━━━━',
-      '姓名：' + name,
-      '联系方式：' + contact,
-      subject ? '主题：' + subject : '',
-      '━━━━━━━━━━━━━━',
-      message,
-      '━━━━━━━━━━━━━━',
-      '时间：' + formatTime(),
-      '请及时处理此留言。'
-    ].filter(Boolean).join('\n');
+  // Build formatted message
+  const formattedMessage = [
+    '🌐 网站留言通知',
+    '═══════════════════════════════',
+    '',
+    '姓名：' + name,
+    '联系方式：' + contact,
+    subject ? '主题：' + subject : '',
+    '',
+    '═══════════════════════════════',
+    '留言内容：',
+    message,
+    '',
+    '═══════════════════════════════',
+    '请及时回复。'
+  ].filter(Boolean).join('\n');
 
-    await sendMessage(text);
-    status.className = 'status success';
-    status.textContent = '✅ 提交成功！我们将尽快与您联系。';
-    document.getElementById('contactForm').reset();
-  } catch(err) {
-    console.error(err);
+  // Submit via fetch (Formspree)
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('contact', contact);
+  formData.append('subject', subject || '(无主题)');
+  formData.append('message', formattedMessage);
+  formData.append('_replyto', contact);
+
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: { 'Accept': 'application/json' }
+  }).then(function(response) {
+    if (response.ok) {
+      status.className = 'status success';
+      status.textContent = '✓ 提交成功！我们将尽快与您联系。';
+      form.reset();
+    } else {
+      response.json().then(function(data) {
+        if (data && data.errors) {
+          status.className = 'status error';
+          status.textContent = '✗ 提交失败：' + data.errors.map(function(e){ return e.message; }).join(', ');
+        } else {
+          status.className = 'status error';
+          status.textContent = '✗ 提交失败，请稍后重试。';
+        }
+      });
+    }
+  }).catch(function(err) {
     status.className = 'status error';
-    status.textContent = '❌ 提交失败：' + err.message;
-  } finally {
+    status.textContent = '✗ 网络错误，请检查网络后重试。';
+  }).finally(function() {
     btn.disabled = false;
-    btn.textContent = '提交留言';
-  }
+    btn.textContent = '提 交';
+  });
 });
 </script>
 </body>
